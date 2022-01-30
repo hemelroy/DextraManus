@@ -38,15 +38,15 @@ class LoginWindow(Screen):
             self.window.spacing = 10
 
             #image widget
-            self.system_logo = Image(source="logo-social.png",
+            self.company_logo = Image(source="Logo_White_A.png",
                                      pos_hint={"center_x": 0.5, "top": 0})
-            self.window.add_widget(self.system_logo)
+            self.window.add_widget(self.company_logo)
 
-            self.company_logo = Image(source="logo-social.png",
+            self.system_logo = Image(source="DextraManus_White.png",
                                      size_hint=(0.5, 0.5),
                                      pos_hint={"center_x": 0.5, "center_y": 0.3},
                                      )
-            self.window.add_widget(self.company_logo)
+            self.window.add_widget(self.system_logo)
 
             self.password_prompt = Label(text="Machine Password",
                                          color="#c3c3c3",
@@ -106,34 +106,73 @@ class MainWindow(Screen):
         super(MainWindow, self).__init__(**kwargs)
 
         self.layout = BoxLayout(orientation='vertical')
-        
+        #self.layout.spacing = 10
+        self.layout.padding = [0, 10, 0, 10]
+
+        self.system_logo = Image(source="DextraManus_White.png",
+                                     pos_hint={"center_x": 0.5, "top": 0})
+        self.system_logo.size_hint = (0.6, 0.4)
+        self.layout.add_widget(self.system_logo)
+
+        self.title = Label(text="Main Menu",
+                           font_size=36,
+                           bold=True,
+                           color="#c3c3c3")
+        self.title.size_hint = (0.6, 0.2)
+        self.title.pos_hint = {"center_x": 0.5}
+        self.layout.add_widget(self.title)
+
+        self.buttonBox = BoxLayout(orientation='vertical')
+        self.buttonBox.size_hint = (0.2, 0.3) # width, height
+        self.buttonBox.pos_hint = {"center_x": 0.5} # center on screen
+        self.layout.add_widget(self.buttonBox)
+
         self.btn_start = Button(
-            text="Start Hand Tracking"
+            text="",
+            background_normal = 'buttons/Start.png',
+            background_down = 'buttons/Start_Pressed.png'
         )
 
         self.btn_model = Button(
-            text="Model Settings"
+            text="",
+            background_normal = 'buttons/Settings.png',
+            background_down = 'buttons/Settings_Pressed.png'
         )
 
         self.btn_changePass = Button(
-            text="Change Password"
+            text="",
+            background_normal = 'buttons/Password.png',
+            background_down = 'buttons/Password_Pressed.png'
         )
         
-        self.layout.add_widget(self.btn_start)
+        self.buttonBox.add_widget(self.btn_start)
 
         self.btn_start.bind(on_press=self.go_to_tracking)
+        self.btn_changePass.bind(on_press=self.goToChangePass)
 
-        self.layout.add_widget(self.btn_model)
-        self.layout.add_widget(self.btn_changePass)
+        self.buttonBox.add_widget(self.btn_model)
+        self.buttonBox.add_widget(self.btn_changePass)
 
         self.add_widget(self.layout)
 
+        self.group_logo = Image(source="Logo_White_A.png",
+                                     pos_hint={"center_x": 0.95, "bottom": 0})
+        self.group_logo.size_hint = (None, 0.2)
+        self.layout.add_widget(self.group_logo)
+
+
+
     def go_to_tracking(self, *args):
-            self.manager.current = 'tracking'
+        self.manager.current = 'tracking'
+
+    def goToChangePass(self, *args):
+        self.manager.current = 'changepass'
 
 class TrackingWindow(Screen):
     def __init__(self, **kwargs):
         super(TrackingWindow, self).__init__(**kwargs)
+        self.calibration_step = True
+        self.calibration_counter = 5
 
         self.main_window = BoxLayout(orientation='horizontal')
         self.tracking_window = BoxLayout(orientation='vertical')
@@ -246,46 +285,32 @@ class TrackingWindow(Screen):
             os.remove(f)
 
         Clock.schedule_interval(self.beginTracking, 1/30)
+        self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1)
+
+    def updateCalibrationCount(self, *args):
+        self.calibration_counter -= 1
+
+        if self.calibration_counter < 0:
+            self.calibration_step = False
 
     def beginTracking(self, *args):
         self.tracking_window.remove_widget(self.tracking_prompts)
 
-        # self.capture = Camera(resolution=(1280, 720))
-        # self.tracking_window.add_widget(self.capture)
-
-        # height, width = self.capture.texture.height, self.capture.texture.width
-        # newvalue = np.frombuffer(self.capture.texture.pixels, np.uint8)
-        # newvalue = newvalue.reshape(height, width, 4)
-        # cv2.imwrite("test.png", newvalue)
-
-        #self.capture.source = "input2.png"
-
-        # T = Thread(target = self.showWebcam)
-        # # change T to daemon
-        # T.setDaemon(True)                  
-        # # starting of Thread T
-        # T.start()       
-
         self.ret, self.frame = self.vid.read()
+        self.frame = cv2.flip(self.frame, 1)
+
+        if self.calibration_step:
+            self.frame = cvTools.calibrationStep(self.frame, self.calibration_counter)
+        else:
+            self.calibration_event.cancel()
+
+
         old_name = 'captures/' + str(self.counter) + ".png"
         cv2.imwrite(old_name, self.frame)
         self.counter = self.counter + 1
         new_name = 'captures/' + str(self.counter) + '.png'
         os.rename(old_name, new_name)
         self.capture.source = new_name
-
-    # def update(self, dt):
-    #     # display image from cam in opencv window
-    #     ret, frame = self.capture.read()
-    #     #cv2.imshow("CV2 Image", frame)
-    #     # convert it to texture
-    #     buf1 = cv2.flip(frame, 0)
-    #     buf = buf1.tostring()
-    #     texture1 = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr') 
-    #     #if working on RASPBERRY PI, use colorfmt='rgba' here instead, but stick with "bgr" in blit_buffer. 
-    #     texture1.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-    #     # display image from the texture
-    #     self.img1.texture = texture1
 
 
     def showWebcam(self, *args):
@@ -309,3 +334,130 @@ class TrackingWindow(Screen):
                 break
         vid.release()
             
+class PasswordWindow(Screen):
+        def __init__(self, **kwargs):
+            super(PasswordWindow, self).__init__(**kwargs)
+
+            self.layout = BoxLayout(orientation='vertical')
+            self.layout.padding = [0, 10, 0, 10]
+
+            self.system_logo = Image(source="DextraManus_White.png",
+                                     pos_hint={"center_x": 0.5, "top": 0})
+            self.system_logo.size_hint = (0.6, 0.3)
+            self.layout.add_widget(self.system_logo)
+
+            self.title = Label(text="Change Password",
+                            font_size=36,
+                            bold=True,
+                            color="#c3c3c3")
+            self.title.size_hint = (0.6, 0.2)
+            self.title.pos_hint = {"center_x": 0.5}
+            self.layout.add_widget(self.title)
+
+            self.interaction_region = BoxLayout(orientation='horizontal')
+            self.interaction_region.size_hint = (0.5, 0.5)
+            self.interaction_region.pos_hint = {"center_x": 0.5}
+
+            self.left_pane = BoxLayout(orientation='vertical')
+            self.old_pass_prompt = Label(
+                text="Enter Old Password *",
+                font_size=18,
+                color="#c3c3c3",
+                halign="left"
+            )
+            self.old_pass_prompt.bind(size=self.old_pass_prompt.setter('text_size')) 
+            self.left_pane.add_widget(self.old_pass_prompt)
+            
+
+            self.old_pass_field = TextInput(multiline=False,
+                                        padding_y=(5,5),
+                                        font_size=18,
+                                        password=True,
+                                        background_color=(48/255,51/255,57/255,1),
+                                        foreground_color=(195/255, 195/255, 195/255, 1),
+                                        size_hint=(0.6, 0.3)
+                                        )
+            self.left_pane.add_widget(self.old_pass_field)
+
+            self.new_pass_prompt = Label(
+                text="Enter New Password *",
+                font_size=18,
+                color="#c3c3c3"
+            )
+            self.new_pass_prompt.bind(size=self.new_pass_prompt.setter('text_size')) 
+            self.left_pane.add_widget(self.new_pass_prompt)
+
+            self.new_pass_field = TextInput(multiline=False,
+                                        padding_y=(5,5),
+                                        font_size=18,
+                                        password=True,
+                                        background_color=(48/255,51/255,57/255,1),
+                                        foreground_color=(195/255, 195/255, 195/255, 1),
+                                        size_hint=(0.6, 0.3)
+                                        )
+            self.left_pane.add_widget(self.new_pass_field)
+
+            self.new_pass_ver_prompt = Label(
+                text="Confirm New Password *",
+                font_size=18,
+                color="#c3c3c3"
+            )
+            self.new_pass_ver_prompt.bind(size=self.new_pass_ver_prompt.setter('text_size')) 
+            self.left_pane.add_widget(self.new_pass_ver_prompt)
+
+            self.new_pass_ver = TextInput(multiline=False,
+                                        padding_y=(5,5),
+                                        font_size=18,
+                                        password=True,
+                                        background_color=(48/255,51/255,57/255,1),
+                                        foreground_color=(195/255, 195/255, 195/255, 1),
+                                        size_hint=(0.6, 0.3)
+                                        )
+            self.left_pane.add_widget(self.new_pass_ver)
+
+
+
+            self.right_pane = BoxLayout(orientation='vertical')
+            self.pass_requirements = Label(
+                text="Password Requirements:\n \u2022 At least 6 characters\n \u2022 Upper/lower case letters\n \u2022 Number or punctuation",
+                font_size=18,
+                color="#c3c3c3"
+            )
+            self.pass_requirements.bind(size=self.pass_requirements.setter('text_size')) 
+            self.right_pane.add_widget(self.pass_requirements)
+            self.right_pane.spacing = 10
+
+            self.btn_apply = Button(
+                text="",
+                background_normal = 'buttons/ApplyChanges.png',
+                background_down = 'buttons/ApplyChanges_Pressed.png'
+            )
+            self.btn_apply.size_hint = (0.4, 0.4)
+            self.btn_apply.pos_hint = {"center_x": 0.25}
+            self.right_pane.add_widget(self.btn_apply)
+
+
+            self.btn_cancel = Button(
+                text="",
+                background_normal = 'buttons/Cancel.png',
+                background_down = 'buttons/Cancel_Pressed.png'
+            )
+            self.btn_cancel.size_hint = (0.4, 0.4)
+            self.btn_cancel.pos_hint = {"center_x": 0.25}
+            self.right_pane.add_widget(self.btn_cancel)
+            
+
+
+
+            self.interaction_region.add_widget(self.left_pane)
+            self.interaction_region.add_widget(self.right_pane)
+
+            self.layout.add_widget(self.interaction_region)
+
+            self.group_logo = Image(source="Logo_White_A.png",
+                                     pos_hint={"center_x": 0.95, "bottom": 0})
+            self.group_logo.size_hint = (None, 0.2)
+            self.layout.add_widget(self.group_logo)
+
+
+            self.add_widget(self.layout)

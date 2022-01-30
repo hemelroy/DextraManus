@@ -22,6 +22,7 @@ class TrackingApp(App):
         wm.add_widget(LoginWindow(name='login'))
         wm.add_widget(MainWindow(name='main'))
         wm.add_widget(TrackingWindow(name='tracking'))
+        wm.add_widget(PasswordWindow(name='changepass'))
         return wm
 
 if __name__ == "__main__":
