@@ -174,6 +174,12 @@ class TrackingWindow(Screen):
         self.calibration_step = True
         self.calibration_counter = 5
 
+        self.calibration_phase = 0
+        #0 = calibration incomplete and needs to be done
+        #1 = calibration has started
+        #2 = calibration complete, begin tracking
+        #-1 = calibration error, reset
+
         self.main_window = BoxLayout(orientation='horizontal')
         self.tracking_window = BoxLayout(orientation='vertical')
         self.status_window = FloatLayout() #BoxLayout(orientation='vertical')
@@ -238,7 +244,7 @@ class TrackingWindow(Screen):
                                      #height=50,
                                      pos_hint={'center_x': 0.5, 'center_y':0.45})
         self.status_window.add_widget(self.callibrate_btn)
-        self.callibrate_btn.bind(on_press=self.beginSchedule)
+        self.callibrate_btn.bind(on_press=self.beginTracking)
 
 
         self.exit_btn = Button(text="",
@@ -255,8 +261,9 @@ class TrackingWindow(Screen):
 
 
         self.tracking_prompts = Label(text="Press calibrate to begin",
-                                      font_size=24,
-                                      pos_hint={'center_x': 0.5, 'center_y': 0.5})
+                                      font_size=18,
+                                      pos_hint={'center_x': 0.5},
+                                      size_hint=(None, 0.1))
         self.tracking_window.add_widget(self.tracking_prompts)
 
 
@@ -276,15 +283,15 @@ class TrackingWindow(Screen):
 
 
     def beginSchedule(self, *args):
-        if self.check:
-            self.tracking_window.add_widget(self.capture)
-            self.check = False
+        # if self.check:
+        #     self.tracking_window.add_widget(self.capture)
+        #     self.check = False
 
         files = glob.glob('captures/*')
         for f in files:
             os.remove(f)
 
-        Clock.schedule_interval(self.beginTracking, 1/30)
+        Clock.schedule_interval(self.beginTracking, 1/10)
         self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1)
 
     def updateCalibrationCount(self, *args):
@@ -292,18 +299,48 @@ class TrackingWindow(Screen):
 
         if self.calibration_counter < 0:
             self.calibration_step = False
+            self.calibration_phase = 2
 
     def beginTracking(self, *args):
-        self.tracking_window.remove_widget(self.tracking_prompts)
+        #self.tracking_window.remove_widget(self.tracking_prompts)
+
+        if self.check:
+            self.tracking_window.add_widget(self.capture)
+            self.check = False
 
         self.ret, self.frame = self.vid.read()
         self.frame = cv2.flip(self.frame, 1)
 
-        if self.calibration_step:
-            self.frame = cvTools.calibrationStep(self.frame, self.calibration_counter)
-        else:
-            self.calibration_event.cancel()
+        if self.calibration_phase == 0:
+            #self.tracking_window.add_widget(self.capture)
+            self.tracking_prompts.text = "Place hand in front of webcam to begin"
 
+            self.calibration_phase = 1
+            self.calibration_counter = 5
+            self.beginSchedule()
+
+
+        if self.calibration_phase == 1:
+            calibration_passed = cvTools.checkHandTrack(self.frame)
+            self.frame = cvTools.calibrationStep(self.frame, self.calibration_counter)
+
+            if not calibration_passed:
+                self.calibration_event.cancel()
+                self.tracking_prompts.text = "Place right hand on screen as indicated for 5 seconds to begin"
+                self.calibration_phase = -1
+
+        
+        if self.calibration_phase == -1:
+            calibration_passed = cvTools.checkHandTrack(self.frame)
+
+            if calibration_passed:
+                self.calibration_counter = 5
+                self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1)
+                self.calibration_phase = 1
+
+
+        if self.calibration_phase != 2:
+            self.frame = cvTools.addHandOverlay(self.frame)
 
         old_name = 'captures/' + str(self.counter) + ".png"
         cv2.imwrite(old_name, self.frame)
@@ -311,6 +348,11 @@ class TrackingWindow(Screen):
         new_name = 'captures/' + str(self.counter) + '.png'
         os.rename(old_name, new_name)
         self.capture.source = new_name
+
+    def goToMain(self, *args):
+        self.calibration_counter = 5
+        self.calibration_phase = 0
+        self.manager.current = 'main'
 
 
     def showWebcam(self, *args):

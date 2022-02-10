@@ -34,6 +34,7 @@ if __name__ == "__main__":
     Window.clearcolor = (54/255, 57/255, 63/255, 1)
     Window.background_color = (54/255, 57/255, 63/255, 1)
     Window.background_normal = ""
+    Window.maximize()
 
     #TODO: change to being auto maximized without setting default screen size to full
     TrackingApp().run()
