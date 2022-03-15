@@ -7,7 +7,7 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 from google.protobuf.json_format import MessageToDict
-
+from mediapipe.framework.formats import landmark_pb2
 hand_indicator = cv2.imread("hand_placement_indicator_small.png")
 
 def initializeWebcam():
@@ -27,6 +27,31 @@ class HandTracker:
         self.model_complexity = model_complexity
         self.min_detection_conf = min_detection_conf
         self.min_track_conf = min_track_conf
+
+        self.thumb_tip = 0
+        self.thumb_below_tip = 0 
+        self.thumb_before_end = 0 
+        self.thumb_end = 0
+
+        self.index_tip = 0
+        self.index_below_tip = 0 
+        self.index_before_end = 0 
+        self.index_end = 0
+
+        self.mid_tip = 0
+        self.mid_below_tip = 0 
+        self.mid_before_end = 0 
+        self.mid_end = 0
+
+        self.ring_tip = 0
+        self.ring_below_tip = 0 
+        self.ring_before_end = 0 
+        self.ring_end = 0
+
+        self.pinky_tip = 0
+        self.pinky_below_tip = 0 
+        self.pinky_before_end = 0 
+        self.pinky_end = 0
 
         self.index_status = "NA"
         self.mid_status = "NA"
@@ -99,96 +124,96 @@ class HandTracker:
             # else:
             #     return handedness
 
-    def postProcess(self, hand_landmarks):
+    def postProcess(self, hand_landmarks, major_hand_idx):
         # For y coordinates, top of screen is -1, bottom of screen is 1
         if hand_landmarks:
             # for the thumb
-            thumb_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP].y
-            thumb_below_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_IP].y
-            thumb_before_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_MCP].y
-            thumb_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_CMC].y
-            if thumb_tip < thumb_below_tip:
+            self.thumb_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.THUMB_TIP].x
+            self.thumb_below_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.THUMB_IP].x
+            self.thumb_before_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.THUMB_MCP].x
+            self.thumb_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.THUMB_CMC].x
+            if self.thumb_tip < self.thumb_below_tip:
                 self.thumb_status = "1"
                 self.output[0] = 0
-            elif thumb_tip < (thumb_before_end) and thumb_tip >= (thumb_below_tip):
+            elif self.thumb_tip < (self.thumb_before_end) and self.thumb_tip >= (self.thumb_below_tip):
                 self.thumb_status = "0.66"
                 self.output[0] = 60
-            elif thumb_tip > (thumb_before_end + 0.01) and thumb_tip < (thumb_end - 0.01):
+            elif self.thumb_tip > (self.thumb_before_end + 0.01) and self.thumb_tip < (self.thumb_end - 0.01):
                 self.thumb_status = "0.33"
                 self.output[0] = 120
-            elif thumb_tip > thumb_end:
+            elif self.thumb_tip > self.thumb_end:
                 self.thumb_status = "0"
                 self.output[0] = 150
 
             # for the index finger
-            index_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP].y
-            index_below_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_DIP].y
-            index_before_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_PIP].y
-            index_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP].y
-            if index_tip < index_below_tip:
+            self.index_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP].y
+            self.index_below_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.INDEX_FINGER_DIP].y
+            self.index_before_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.INDEX_FINGER_PIP].y
+            self.index_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP].y
+            if self.index_tip < self.index_below_tip:
                 self.index_status = "1"
                 self.output[1] = 0
-            elif index_tip < (index_before_end) and index_tip >= (index_below_tip):
+            elif self.index_tip < (self.index_before_end) and self.index_tip >= (self.index_below_tip):
                 self.index_status = "0.66"
                 self.output[1] = 60
-            elif index_tip > (index_before_end + 0.01) and index_tip < (index_end - 0.01):
+            elif self.index_tip > (self.index_before_end + 0.01) and self.index_tip < (self.index_end - 0.01):
                 self.index_status = "0.33"
                 self.output[1] = 120
-            elif index_tip > index_end:
+            elif self.index_tip > self.index_end:
                 self.index_status = "0"
                 self.output[1] = 180
 
             # for the middle finger
-            mid_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP].y
-            mid_below_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_DIP].y
-            mid_before_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_PIP].y
-            mid_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_MCP].y
-            if mid_tip < mid_below_tip:
+            self.mid_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP].y
+            self.mid_below_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_DIP].y
+            self.mid_before_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_PIP].y
+            self.mid_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_MCP].y
+            if self.mid_tip < self.mid_below_tip:
                 self.mid_status = "1"
                 self.output[2] = 0
-            elif mid_tip < (mid_before_end) and mid_tip >= (mid_below_tip):
+            elif self.mid_tip < (self.mid_before_end) and self.mid_tip >= (self.mid_below_tip):
                 self.mid_status = "0.66"
                 self.output[2] = 60
-            elif mid_tip > (mid_before_end + 0.01) and mid_tip < (mid_end - 0.01):
+            elif self.mid_tip > (self.mid_before_end + 0.01) and self.mid_tip < (self.mid_end - 0.01):
                 self.mid_status = "0.33"
                 self.output[2] = 120
-            elif mid_tip > mid_end:
+            elif self.mid_tip > self.mid_end:
                 self.mid_status = "0"
                 self.output[2] = 180
 
             # for the ring finger
-            ring_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.RING_FINGER_TIP].y
-            ring_below_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.RING_FINGER_DIP].y
-            ring_before_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.RING_FINGER_PIP].y
-            ring_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.RING_FINGER_MCP].y
-            if ring_tip < ring_below_tip:
+            self.ring_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.RING_FINGER_TIP].y
+            self.ring_below_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.RING_FINGER_DIP].y
+            self.ring_before_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.RING_FINGER_PIP].y
+            self.ring_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.RING_FINGER_MCP].y
+            if self.ring_tip < self.ring_below_tip:
                 self.ring_status = "1"
                 self.output[3] = 0
-            elif ring_tip < (ring_before_end) and ring_tip >= (ring_below_tip):
+            elif self.ring_tip < (self.ring_before_end) and self.ring_tip >= (self.ring_below_tip):
                 self.ring_status = "0.66"
                 self.output[3] = 60
-            elif ring_tip > (ring_before_end + 0.01) and ring_tip < (ring_end - 0.01):
+            elif self.ring_tip > (self.ring_before_end + 0.01) and self.ring_tip < (self.ring_end - 0.01):
                 self.ring_status = "0.33"
                 self.output[3] = 120
-            elif ring_tip > ring_end:
+            elif self.ring_tip > self.ring_end:
                 self.ring_status = "0"
                 self.output[3] = 180
 
             # for the pinky finger
-            pinky_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.PINKY_TIP].y
-            pinky_below_tip = hand_landmarks[0].landmark[mp_hands.HandLandmark.PINKY_DIP].y
-            pinky_before_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.PINKY_PIP].y
-            pinky_end = hand_landmarks[0].landmark[mp_hands.HandLandmark.PINKY_MCP].y
-            if pinky_tip < pinky_below_tip:
+            self.pinky_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.PINKY_TIP].y
+            self.pinky_below_tip = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.PINKY_DIP].y
+            self.pinky_before_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.PINKY_PIP].y
+            self.pinky_end = hand_landmarks[major_hand_idx].landmark[mp_hands.HandLandmark.PINKY_MCP].y
+            if self.pinky_tip < self.pinky_below_tip:
                 self.pinky_status = "1"
                 self.output[4] = 0
-            elif pinky_tip < (pinky_before_end) and pinky_tip >= (pinky_below_tip):
+            elif self.pinky_tip < (self.pinky_before_end) and self.pinky_tip >= (self.pinky_below_tip):
                 self.pinky_status = "0.66"
                 self.output[4] = 60
-            elif pinky_tip > (pinky_before_end + 0.01) and pinky_tip < (pinky_end - 0.01):
+            elif self.pinky_tip > (self.pinky_before_end + 0.01) and self.pinky_tip < (self.pinky_end - 0.01):
                 self.pinky_status = "0.33"
                 self.output[4] = 120
-            elif pinky_tip > pinky_end:
+            elif self.pinky_tip > self.pinky_end:
                 self.pinky_status = "0"
                 self.output[4] = 180
 
@@ -220,24 +245,37 @@ class HandTracker:
             hand_landmarks = results.multi_hand_landmarks #produces xyz coordinates for all landmark points
             #data is in a list with one index (for one hand), containing element of type
             # 'mediapipe.framework.formats.landmark_pb2.NormalizedLandmarkList'
-
-            self.postProcess(hand_landmarks)
-
             # print(results.multi_hand_landmarks)
             # print("Next:")
 
-            
-            if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(
-                        frame,
-                        hand_landmarks,
-                        mp_hands.HAND_CONNECTIONS,
-                        mp_drawing_styles.get_default_hand_landmarks_style(),
-                        mp_drawing_styles.get_default_hand_connections_style())
+            right_hand_list = []
+            if results.multi_handedness:
+                for idx, hand_handedness in enumerate(results.multi_handedness): 
+                    #results.multi_handedness is of type <class 'mediapipe.framework.formats.classification_pb2.ClassificationList'>
+                    handedness_dict = MessageToDict(hand_handedness)
+                    handedness = handedness_dict["classification"][0]["label"]
+                    if handedness == "Right":
+                        right_hand_list.append(idx)
+
+            if right_hand_list:
+                self.postProcess(hand_landmarks,right_hand_list[0])
+                hand_landmark_major_right = landmark_pb2.NormalizedLandmarkList(
+                    landmark = [
+                        hand_landmarks[right_hand_list[0]].landmark[i] for i in range(21) 
+                    ]
+                )
+                if results.multi_hand_landmarks:
+                    for hand_landmarks in results.multi_hand_landmarks:
+                        mp_drawing.draw_landmarks(
+                            frame,
+                            hand_landmark_major_right,
+                            mp_hands.HAND_CONNECTIONS,
+                            mp_drawing_styles.get_default_hand_landmarks_style(),
+                            mp_drawing_styles.get_default_hand_connections_style())
 
                 frame = self.putFingerVals(frame)
-
+            else:
+                self.postProcess(hand_landmarks,0)
             if not results.multi_hand_landmarks:
                 hand_detected = False
             else:
