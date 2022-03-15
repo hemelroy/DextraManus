@@ -30,27 +30,29 @@
 import serial
 import serial.tools.list_ports
 import time
+from datetime import datetime
 
-arduino = serial.Serial(port='COM11', baudrate=115200, timeout=0.1, write_timeout=0)
+arduino = serial.Serial(port='COM11', baudrate=115200)
 #arduino = serial.Serial(port='COM11', baudrate=9600, timeout=0.1, write_timeout=0)
 myports = [tuple(p) for p in list(serial.tools.list_ports.comports())]
 arduino_port = [port for port in myports if 'COM11' in port ][0]
 
 # dataToSend = Array (up to 5 elements corresponding to each finger)
 def arduinoWrite(dataToSend):
-    arduino.write(bytes('<','utf-8'))
-    #time.sleep(0.03)
-    arduino.write(bytes('255', 'utf-8'))
-    #time.sleep(0.03)
-    for i in range(len(dataToSend)):
-        arduino.write(bytes(',', 'utf-8'))
-        #time.sleep(0.03)
-        arduino.write(bytes(str(dataToSend[i]), 'utf-8'))
-        #time.sleep(0.03)
-    arduino.write(bytes('>','utf-8'))
-    #time.sleep(0.03)
-    #data = arduino.readline()
-    #print(data)
+    # arduino.write(bytes('<','utf-8'))
+    # #time.sleep(0.03)
+    # arduino.write(bytes('255', 'utf-8'))
+    # #time.sleep(0.03)
+    # for i in range(len(dataToSend)):
+    #     arduino.write(bytes(',', 'utf-8'))
+    #     #time.sleep(0.03)
+    #     arduino.write(bytes(str(dataToSend[i]), 'utf-8'))
+    #     #time.sleep(0.03)
+    # arduino.write(bytes('>','utf-8'))
+    # #time.sleep(0.03)
+    # #data = arduino.readline()
+    # #print(data)
+    arduino.write(bytes(('<255,' + str(dataToSend[0]) + ',' + str(dataToSend[1]) + ',' + str(dataToSend[2]) + ',' + str(dataToSend[3]) + ',' + str(dataToSend[4]) + '>'), 'utf-8'))
 
 # dataToSend = Array (up to 5 elements corresponding to each finger)
 # returns True if successul, False if fail
@@ -70,6 +72,7 @@ def transmit(dataToSend):
             return False
 
     arduinoWrite(dataToSend)
+    print(datetime.now())
     #print(dataToSend)
     #print(True)
     return True

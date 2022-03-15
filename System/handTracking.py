@@ -223,8 +223,8 @@ class HandTracker:
 
             self.postProcess(hand_landmarks)
 
-            print(results.multi_hand_landmarks)
-            print("Next:")
+            # print(results.multi_hand_landmarks)
+            # print("Next:")
 
             
             if results.multi_hand_landmarks:

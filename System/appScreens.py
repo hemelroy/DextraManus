@@ -196,6 +196,8 @@ class TrackingWindow(Screen):
         #2 = calibration complete, begin tracking
         #-1 = calibration error, reset
 
+        self.begin_transmit = False
+
         Window.bind(on_key_down=self._keydown)
 
         #Draw widgets to screen
@@ -316,6 +318,8 @@ class TrackingWindow(Screen):
         if self.calibration_counter < 0:
             self.calibration_step = False
             self.calibration_phase = 2
+            self.begin_transmit = True
+            Clock.unschedule(self.calibration_event)
 
     def terminateTracking(self, *args):
         if self.calibration_phase != 0:
@@ -462,7 +466,10 @@ class TrackingWindow(Screen):
             if not hand_found:
                 self.performEmergencyStop()
 
-            #self.transmit_event = Clock.schedule_interval(self.transmitPosition, 1)
+            if self.begin_transmit:
+                #self.transmit_event = Clock.schedule_interval(self.transmitPosition, 2)
+                print("---------------Scheduled Transmit Event----------------------")
+                self.begin_transmit = False
 
 
         old_name = 'captures/' + str(self.capture_counter) + ".png"
@@ -627,6 +634,7 @@ class PasswordWindow(Screen):
 
 
             self.add_widget(self.layout)
+
 
 class ModelSettingsWindow(Screen):
         def __init__(self, **kwargs):
