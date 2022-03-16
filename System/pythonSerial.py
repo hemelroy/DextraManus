@@ -32,10 +32,27 @@ import serial.tools.list_ports
 import time
 from datetime import datetime
 
-arduino = serial.Serial(port='COM11', baudrate=115200)
-#arduino = serial.Serial(port='COM11', baudrate=9600, timeout=0.1, write_timeout=0)
-myports = [tuple(p) for p in list(serial.tools.list_ports.comports())]
-arduino_port = [port for port in myports if 'COM11' in port ][0]
+COM_PORT = None
+arduino = None
+
+#Returns serial port of an arduino device if connected to machine
+def getSerialPort():
+    global COM_PORT
+
+    arduino_port = None
+    ports = list(serial.tools.list_ports.comports())
+    for p in ports:
+        if "Arduino" in p.description:
+            arduino_port = p[0]
+            if COM_PORT != arduino_port:
+                COM_PORT = str(arduino_port)
+                establishConnection()
+
+    return arduino_port
+
+def establishConnection():
+    global arduino
+    arduino = serial.Serial(port=COM_PORT, baudrate=115200)
 
 # dataToSend = Array (up to 5 elements corresponding to each finger)
 def arduinoWrite(dataToSend):
