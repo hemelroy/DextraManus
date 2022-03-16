@@ -634,11 +634,11 @@ class PasswordWindow(Screen):
         print(textf)
         #self.warn_text.text = ""
         #self.warn_text = Label(text=textf,
-                               font_size=11,
-                               bold=True,
-                               halign='right',
-                               valign='bottom',
-                               color='#B71C1C')
+        #                       font_size=11,
+        #                       bold=True,
+        #                       halign='right',
+        #                       valign='bottom',
+        #                       color='#B71C1C')
         #self.layout.add_widget(self.warn_text)
 
     def goToMain(self, *args):
