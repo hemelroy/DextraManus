@@ -60,6 +60,8 @@ class HandTracker:
         self.thumb_status = "NA"
         self.output = [0,0,0,0,0]
 
+        self.none_count = 0 #Poll for number of none's detected
+
 
     def addHandOverlay(self, frame):
         old_image_height, old_image_width = hand_indicator.shape[0], hand_indicator.shape[1]
@@ -276,10 +278,16 @@ class HandTracker:
                 frame = self.putFingerVals(frame)
             else:
                 self.postProcess(hand_landmarks,0)
+
             if not results.multi_hand_landmarks:
-                hand_detected = False
+                self.none_count += 1
+                if self.none_count >= 10:
+                    hand_detected = False
+                else:
+                    hand_detected = True
             else:
                 hand_detected = True
+                self.none_count = 0
 
             return frame, hand_detected
 

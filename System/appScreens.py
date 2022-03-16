@@ -15,8 +15,10 @@ from kivy.core.window import Window
 from kivy.uix.slider import Slider
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.popup import Popup
+from kivy.graphics.texture import Texture
 
 import cv2
+cv2.setNumThreads(0)
 import handTracking
 import dataStorage
 import numpy as np
@@ -26,6 +28,8 @@ import os
 import glob
 
 import pythonSerial
+
+import gc
 
 
 PASS = "123"
@@ -336,6 +340,7 @@ class TrackingWindow(Screen):
 
         self.checkConnectionStatus()
         self.serial_monitor = Clock.schedule_interval(self.checkConnectionStatus, 1)
+        #gc.set_debug(gc.DEBUG_LEAK)
 
 
     def beginSchedule(self, *args):
@@ -348,7 +353,7 @@ class TrackingWindow(Screen):
             os.remove(f)
 
         self.tracking_event = Clock.schedule_interval(self.beginTracking, 1/10)
-        self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1/2)
+        self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1)
 
     def updateCalibrationCount(self, *args):
         self.calibration_counter -= 1
@@ -357,7 +362,7 @@ class TrackingWindow(Screen):
             self.calibration_step = False
             self.calibration_phase = 2
             self.begin_transmit = True
-            Clock.unschedule(self.calibration_event)
+            Clock.unschedule(self.calibration_event, all=True)
 
     def terminateTracking(self, *args):
         if self.calibration_phase != 0:
@@ -457,8 +462,8 @@ class TrackingWindow(Screen):
             self.tracking_window.add_widget(self.capture)
             self.show_camera_cap = False
 
-        self.ret, self.frame = self.vid.read()
-        self.frame = cv2.flip(self.frame, 1)
+        ret, frame = self.vid.read()
+        frame = cv2.flip(frame, 1)
 
         if self.calibration_phase == 0:
             #self.tracking_window.add_widget(self.capture)
@@ -470,7 +475,7 @@ class TrackingWindow(Screen):
 
 
         if self.calibration_phase == 1:
-            handedness = self.hand_tracker.checkHandTrack(self.frame)
+            handedness = self.hand_tracker.checkHandTrack(frame)
 
             if handedness == "Right":
                 calibration_passed = True
@@ -485,7 +490,7 @@ class TrackingWindow(Screen):
                 self.hand_indicator.text = "None"
                 self.hand_indicator.color = "red"
 
-            self.frame = self.hand_tracker.calibrationStep(self.frame, self.calibration_counter)
+            frame = self.hand_tracker.calibrationStep(frame, self.calibration_counter)
 
             if not calibration_passed:
                 #self.calibration_event.cancel()
@@ -495,7 +500,7 @@ class TrackingWindow(Screen):
 
         
         if self.calibration_phase == -1:
-            handedness = self.hand_tracker.checkHandTrack(self.frame)
+            handedness = self.hand_tracker.checkHandTrack(frame)
 
             if handedness == "Right":
                 calibration_passed = True
@@ -517,11 +522,11 @@ class TrackingWindow(Screen):
 
 
         if self.calibration_phase != 2:
-            self.frame = self.hand_tracker.addHandOverlay(self.frame)
+            frame = self.hand_tracker.addHandOverlay(frame)
 
         #In hand tracking phase
         if self.calibration_phase == 2:
-            self.frame, hand_found = self.hand_tracker.performHandTracking(self.frame)
+            frame, hand_found = self.hand_tracker.performHandTracking(frame)
             self.tracking_prompts.text = "Press SPACE or remove hand from frame for emergecy stop"
             self.status_indicator.text = "Active"
             self.status_indicator.color = "green"
@@ -530,17 +535,28 @@ class TrackingWindow(Screen):
                 self.performEmergencyStop()
 
             if self.begin_transmit:
-                self.transmit_event = Clock.schedule_interval(self.transmitPosition, 2)
+                self.transmit_event = Clock.schedule_interval(self.transmitPosition, 1)
                 print("---------------Scheduled Transmit Event----------------------")
                 self.begin_transmit = False
 
 
-        old_name = 'captures/' + str(self.capture_counter) + ".png"
-        cv2.imwrite(old_name, self.frame)
-        self.capture_counter = self.capture_counter + 1
-        new_name = 'captures/' + str(self.capture_counter) + '.png'
-        os.rename(old_name, new_name)
-        self.capture.source = new_name
+        # old_name = 'captures/' + str(self.capture_counter) + ".png"
+        # cv2.imwrite(old_name, frame)
+        # self.capture_counter = self.capture_counter + 1
+        # new_name = 'captures/' + str(self.capture_counter) + '.png'
+        # os.rename(old_name, new_name)
+        # self.capture.source = new_name
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = cv2.flip(frame, 0)
+        frame = frame.tostring()
+        texture = Texture.create(size=(1280, 720))
+        texture.blit_buffer(frame, colorfmt='rgb', bufferfmt='ubyte')
+        self.capture.texture = texture
+        #self.capture = Image(texture=texture)
+        #self.capture.texture = texture
+
+        #del self.frame
+        gc.collect()
 
 
     def goToMain(self, *args):
