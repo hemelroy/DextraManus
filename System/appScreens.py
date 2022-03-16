@@ -14,6 +14,7 @@ from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.uix.slider import Slider
 from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.popup import Popup
 
 import cv2
 import handTracking
@@ -24,7 +25,7 @@ from threading import *
 import os 
 import glob
 
-#import pythonSerial
+import pythonSerial
 
 
 PASS = "123"
@@ -36,6 +37,9 @@ class WindowManager(ScreenManager):
 class LoginWindow(Screen):
         def __init__(self, **kwargs):
             super(LoginWindow, self).__init__(**kwargs)
+
+            if not os.path.exists('captures'):
+                os.makedirs('captures')
 
             ######################## Widgets ########################
             self.window = BoxLayout(orientation='vertical')
@@ -87,12 +91,39 @@ class LoginWindow(Screen):
                                     color="#c3c3c3")
             self.window.add_widget(self.text_prompt)
 
+            self.popup = Popup(title='Arduino Not Connected',
+                               content=Label(text='Warning: Application did not detect an arduino connected to this machine. Please connect device before starting calibration.'),
+                               background_color = [0, 0, 0, 1],
+                               size_hint=(0.6, 0.6))
+            self.popup.bind(on_dismiss=self.redrawWidgets)
+            self.checkSerialConnection()
+
         #Function that checks password against what is stored in the database
         def authenticate(self, *args):
             if self.pass_field.text == PASS:
                 self.manager.current = 'main'
             else:
                 self.text_prompt.text = "Incorrect password"
+
+        def checkSerialConnection(self, *args):
+            connection = pythonSerial.getSerialPort()
+
+            if not connection:
+                self.window.remove_widget(self.combined_logo)
+                self.window.remove_widget(self.password_prompt)
+                self.window.remove_widget(self.pass_field)
+                self.window.remove_widget(self.auth_btn)
+                self.remove_widget(self.window)
+                self.window.remove_widget(self.text_prompt)
+                self.popup.open()
+
+        def redrawWidgets(self, *args):
+            self.window.add_widget(self.combined_logo)
+            self.window.add_widget(self.password_prompt)
+            self.window.add_widget(self.pass_field)
+            self.window.add_widget(self.auth_btn)
+            self.add_widget(self.window)
+            self.window.add_widget(self.text_prompt)
 
 class MainWindow(Screen):
     #model settings, change password, start tracking, 
@@ -197,6 +228,7 @@ class TrackingWindow(Screen):
         #-1 = calibration error, reset
 
         self.begin_transmit = False
+        self.serial_connected = False #Inidcator for serial connection
 
         Window.bind(on_key_down=self._keydown)
 
@@ -234,6 +266,8 @@ class TrackingWindow(Screen):
                                       font_size=24,
                                       pos_hint={'center_x': 0.5, 'center_y':0.7})
         self.status_window.add_widget(self.arduino_indicator)
+
+        self.disruption_triggered = False #Flag for if emergency stop needs to be executed
 
 
         self.hand_prompt = Label(text="Hand Detected:",
@@ -300,6 +334,10 @@ class TrackingWindow(Screen):
         #self.ret, self.frame = self.vid.read()
         self.capture_counter = 0
 
+        self.checkConnectionStatus()
+        self.serial_monitor = Clock.schedule_interval(self.checkConnectionStatus, 1)
+
+
     def beginSchedule(self, *args):
         # if self.check:
         #     self.tracking_window.add_widget(self.capture)
@@ -310,7 +348,7 @@ class TrackingWindow(Screen):
             os.remove(f)
 
         self.tracking_event = Clock.schedule_interval(self.beginTracking, 1/10)
-        self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1)
+        self.calibration_event = Clock.schedule_interval(self.updateCalibrationCount, 1/2)
 
     def updateCalibrationCount(self, *args):
         self.calibration_counter -= 1
@@ -327,6 +365,10 @@ class TrackingWindow(Screen):
             Clock.unschedule(self.calibration_event, all=True)
             #self.tracking_event.cancel()
             self.vid.release()
+
+        if self.calibration_phase == 2:
+            Clock.unschedule(self.transmit_event, all=True)
+
         #self.calibration_phase = 3
         self.tracking_window.remove_widget(self.capture)
         self.show_camera_cap = True
@@ -353,6 +395,21 @@ class TrackingWindow(Screen):
             Clock.unschedule(self.transmit_event)
             self.tracking_prompts.text = "Transmission error"
 
+    def checkConnectionStatus(self, *args):
+        if pythonSerial.getSerialPort():
+            self.arduino_indicator.text = "Connected"
+            self.arduino_indicator.color = "green"
+            self.disruption_triggered = False
+        # elif self.disruption_triggered:
+        #     self.arduino_indicator.text = "Disconnected"
+        #     self.arduino_indicator.color = "red"
+        else:
+            self.arduino_indicator.text = "Disconnected"
+            self.arduino_indicator.color = "red"
+            self.disruption_triggered = True
+            self.performEmergencyStop()
+
+
     def _keydown(self,*args):
         key_char = args[-2]
 
@@ -365,6 +422,9 @@ class TrackingWindow(Screen):
             Clock.unschedule(self.tracking_event, all=True)
             Clock.unschedule(self.calibration_event, all=True)
             self.vid.release()
+        
+        if self.calibration_phase == 2:
+            Clock.unschedule(self.transmit_event, all=True)
 
         self.tracking_window.remove_widget(self.capture)
         self.show_camera_cap = True
@@ -372,7 +432,10 @@ class TrackingWindow(Screen):
         self.camera_open = False
         self.calibration_counter = 5
         self.calibration_step = True
-        self.tracking_prompts.text = "EMERGENCY STOP triggered. System has has stopped accepting input."
+        if self.disruption_triggered:
+            self.tracking_prompts.text = "Arduino NOT connected. System cannot proceed."
+        else:
+            self.tracking_prompts.text = "EMERGENCY STOP triggered. System has has stopped accepting input."
 
         self.status_indicator.text = "Inactive"
         self.status_indicator.color = "red"
@@ -467,7 +530,7 @@ class TrackingWindow(Screen):
                 self.performEmergencyStop()
 
             if self.begin_transmit:
-                #self.transmit_event = Clock.schedule_interval(self.transmitPosition, 2)
+                self.transmit_event = Clock.schedule_interval(self.transmitPosition, 2)
                 print("---------------Scheduled Transmit Event----------------------")
                 self.begin_transmit = False
 
@@ -510,13 +573,21 @@ class TrackingWindow(Screen):
 class PasswordWindow(Screen):
         def __init__(self, **kwargs):
             super(PasswordWindow, self).__init__(**kwargs)
+            current_width, current_height = Window.size
 
             self.layout = BoxLayout(orientation='vertical')
             self.layout.padding = [0, 10, 0, 10]
 
-            self.system_logo = Image(source="DextraManus_White.png",
-                                     pos_hint={"center_x": 0.5, "top": 0})
-            self.system_logo.size_hint = (0.6, 0.3)
+            # self.system_logo = Image(source="DextraManus_White.png",
+            #                          pos_hint={"center_x": 0.5, "top": 0})
+            # self.system_logo.size_hint = (0.6, 0.3)
+            # self.layout.add_widget(self.system_logo)
+
+            self.system_logo = Image(source="images/DextraManus_White_Cropped.png",
+                                     pos_hint={"center_x": 0.5, "top": 0.1},
+                                     size_hint=(None, None),
+                                     height = current_height // 4,
+                                     width = round((current_height // 4)*1.72))
             self.layout.add_widget(self.system_logo)
 
             self.title = Label(text="Change Password",
@@ -592,7 +663,7 @@ class PasswordWindow(Screen):
 
             self.right_pane = BoxLayout(orientation='vertical')
             self.pass_requirements = Label(
-                text="Password Requirements:\n \u2022 At least 6 characters\n \u2022 Upper/lower case letters\n \u2022 Number or punctuation",
+                text="Password Requirements:\n    \u2022 At least 6 characters\n    \u2022 Upper/lower case letters\n    \u2022 Number or punctuation",
                 font_size=18,
                 color="#c3c3c3"
             )
@@ -619,8 +690,6 @@ class PasswordWindow(Screen):
             self.btn_cancel.pos_hint = {"center_x": 0.25}
             self.right_pane.add_widget(self.btn_cancel)
             
-
-
 
             self.interaction_region.add_widget(self.left_pane)
             self.interaction_region.add_widget(self.right_pane)
@@ -649,7 +718,10 @@ class ModelSettingsWindow(Screen):
             self.parent_component.size_hint = (0.9, 0.9)
             self.add_widget(self.parent_component)
             self.system_logo = Image(source="images/DextraManus_White_Cropped.png",
-                                     pos_hint={"center_x": 0.55, "top": 0.1})
+                                     pos_hint={"center_x": 0.55, "top": 0.1},
+                                     size_hint=(None, None),
+                                     height = current_height // 4,
+                                     width = round((current_height // 4)*1.72))
             self.parent_component.add_widget(self.system_logo)
 
             self.title = Label(text="Model Parameters",
@@ -787,15 +859,23 @@ class ModelSettingsWindow(Screen):
             # self.add_widget(self.layout)
 
             self.settings_layout = GridLayout(cols=2)
+            #self.settings_layout.pos_hint = {"center_x": 0.5}
+            self.settings_layout.size_hint = (None, None)
+            self.settings_layout.height = current_height // 2
             #self.brightnessControl = Slider(min = 0, max = 100)
 
             self.complexity_prompt = Label(text="Model Complexity",
-                                           color="#c3c3c3")
+                                           color="#c3c3c3",
+                                           size_hint = (None, None),
+                                           height=current_height // 21.6,
+                                           width=current_width//3.33)
 
             self.settings_layout.add_widget(self.complexity_prompt)
 
             self.btn_group = BoxLayout(orientation='horizontal')
-            self.btn_group.height = 50
+            self.btn_group.size_hint = (None, None)
+            self.btn_group.height = current_height // 21.6
+            self.btn_group.width = current_width // 1.66
             self.simple_btn = ToggleButton(text='Simple', group='complexity', state='down')
             self.complex_btn = ToggleButton(text='Complex', group='complexity', state='normal')
             self.btn_group.add_widget(self.simple_btn)
@@ -807,17 +887,26 @@ class ModelSettingsWindow(Screen):
 
             self.det_conf_prompt = Label(text="Min Detection Confidence",
                                          color="#c3c3c3",
-                                         )
+                                         size_hint = (None, None),
+                                         height=current_height // 21.6,
+                                         width=current_width // 3.33)
 
             self.det_conf_slider = Slider(min=0.5, 
                                           max=1, 
                                           value=float(self.min_det_conf), 
                                           value_track=True, 
-                                          value_track_color=[1, 0, 0, 1])
+                                          value_track_color=[1, 0, 0, 1],
+                                          size_hint = (None, None),
+                                          width=current_width // 2.083,
+                                          height=current_height // 21.6)
             self.det_conf_slider.bind(value=self.updateDetConfIndicator)
 
             self.det_conf_ind = Label(text=str(self.det_conf_slider.value),
-                                      color="#c3c3c3")
+                                      color="#c3c3c3",
+                                      size_hint=(None, None),
+                                      height=current_height // 21.6,
+                                      width=current_width // 4.6875)
+            self.det_conf_ind.bind(size=self.det_conf_ind.setter('text_size'))
 
             # 1st row - one label, one slider   
             self.settings_layout.add_widget(self.det_conf_prompt)
@@ -830,17 +919,25 @@ class ModelSettingsWindow(Screen):
 
             self.track_conf_prompt = Label(text="Min Tracking Confidence",
                                          color="#c3c3c3",
-                                         )
+                                         size_hint = (None, None),
+                                         height=current_height // 21.6,
+                                         width=current_width // 3.33)
 
             self.track_conf_slider = Slider(min=0.5, 
                                             max=1, 
                                             value=float(self.min_track_conf), 
                                             value_track=True, 
-                                            value_track_color=[1, 0, 0, 1])
+                                            value_track_color=[1, 0, 0, 1],
+                                            size_hint = (None, None),
+                                            width=current_width // 2.083,
+                                            height=current_height // 21.6)
             self.track_conf_slider.bind(value=self.updateTrackConfIndicator)
 
             self.track_conf_ind = Label(text=str(self.track_conf_slider.value),
-                                      color="#c3c3c3")
+                                      color="#c3c3c3",
+                                      size_hint=(None, None),
+                                      height=current_height // 21.6,
+                                      width=current_width // 4.6875)
 
             # 1st row - one label, one slider   
             self.settings_layout.add_widget(self.track_conf_prompt)

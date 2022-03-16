@@ -16,7 +16,7 @@ import ctypes
 
 PASS = "123"
 
-class TrackingApp(App):
+class DextraManusApp(App):
     def build(self):
         wm = WindowManager(transition=FadeTransition())
         wm.add_widget(LoginWindow(name='login'))
@@ -37,5 +37,4 @@ if __name__ == "__main__":
     Window.background_normal = ""
     Window.maximize()
 
-    #TODO: change to being auto maximized without setting default screen size to full
-    TrackingApp().run()
+    DextraManusApp().run()
