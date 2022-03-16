@@ -602,8 +602,8 @@ class PasswordWindow(Screen):
 
             self.btn_apply = Button(
                 text="",
-                background_normal = 'buttons/ApplyChanges.png',
-                background_down = 'buttons/ApplyChanges_Pressed.png'
+                background_normal = 'buttons/Save.png',
+                background_down = 'buttons/Save_Pressed.png'
             )
             self.btn_apply.size_hint = (0.4, 0.4)
             self.btn_apply.pos_hint = {"center_x": 0.25}
