@@ -1,4 +1,3 @@
-from turtle import window_height
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
@@ -16,22 +15,21 @@ from kivy.uix.slider import Slider
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.popup import Popup
 from kivy.graphics.texture import Texture
+from kivy.graphics import *
 
 import cv2
-cv2.setNumThreads(0)
-import handTracking
-import dataStorage
 import numpy as np
 import time
 from threading import *
 import os 
 import glob
-
-import pythonSerial
-
 import gc
 
+import handTracking
+import dataStorage
+import pythonSerial
 
+cv2.setNumThreads(0)
 PASS = "123"
 
 class WindowManager(ScreenManager):
@@ -41,9 +39,6 @@ class WindowManager(ScreenManager):
 class LoginWindow(Screen):
         def __init__(self, **kwargs):
             super(LoginWindow, self).__init__(**kwargs)
-
-            if not os.path.exists('captures'):
-                os.makedirs('captures')
 
             ######################## Widgets ########################
             self.window = BoxLayout(orientation='vertical')
@@ -236,7 +231,18 @@ class TrackingWindow(Screen):
 
         Window.bind(on_key_down=self._keydown)
 
-        #Draw widgets to screen
+        ######################## Widgets ########################
+        current_width, current_height = Window.size
+        with self.canvas:
+            Color(48/255, 51/255, 57/255, 1)
+            Rectangle(pos=(round((current_width//4)*3), 10), size=(current_width//4, current_height-20))
+        with self.canvas:
+            Color(0, 0, 0, 1)
+            Line(points=[round(current_width*0.75), current_height-10, 
+                        round(current_width*0.75), 10, 
+                        current_width-2, 10, 
+                        current_width-2, current_height-10,
+                        round(current_width*0.75), current_height-10], width=2)
         self.main_window = BoxLayout(orientation='horizontal')
         self.tracking_window = BoxLayout(orientation='vertical')
         self.status_window = FloatLayout() #BoxLayout(orientation='vertical')
@@ -340,6 +346,7 @@ class TrackingWindow(Screen):
 
         self.checkConnectionStatus()
         self.serial_monitor = Clock.schedule_interval(self.checkConnectionStatus, 1)
+
         #gc.set_debug(gc.DEBUG_LEAK)
 
 
@@ -539,23 +546,13 @@ class TrackingWindow(Screen):
                 print("---------------Scheduled Transmit Event----------------------")
                 self.begin_transmit = False
 
-
-        # old_name = 'captures/' + str(self.capture_counter) + ".png"
-        # cv2.imwrite(old_name, frame)
-        # self.capture_counter = self.capture_counter + 1
-        # new_name = 'captures/' + str(self.capture_counter) + '.png'
-        # os.rename(old_name, new_name)
-        # self.capture.source = new_name
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = cv2.flip(frame, 0)
         frame = frame.tostring()
         texture = Texture.create(size=(1280, 720))
         texture.blit_buffer(frame, colorfmt='rgb', bufferfmt='ubyte')
         self.capture.texture = texture
-        #self.capture = Image(texture=texture)
-        #self.capture.texture = texture
 
-        #del self.frame
         gc.collect()
 
 
@@ -598,13 +595,9 @@ class PasswordWindow(Screen):
 
             current_width, current_height = Window.size
 
+            ######################## Widgets ########################
             self.layout = BoxLayout(orientation='vertical')
             self.layout.padding = [0, 10, 0, 10]
-
-            # self.system_logo = Image(source="DextraManus_White.png",
-            #                          pos_hint={"center_x": 0.5, "top": 0})
-            # self.system_logo.size_hint = (0.6, 0.3)
-            # self.layout.add_widget(self.system_logo)
 
             self.system_logo = Image(source="images/DextraManus_White_Cropped.png",
                                      pos_hint={"center_x": 0.5, "top": 0.1},
@@ -614,27 +607,24 @@ class PasswordWindow(Screen):
             self.layout.add_widget(self.system_logo)
 
             self.title = Label(text="Change Password",
-                            font_size=36,
-                            bold=True,
-                            color="#c3c3c3")
+                               font_size=36,
+                               bold=True,
+                               color="#c3c3c3")
             self.title.size_hint = (0.6, 0.2)
             self.title.pos_hint = {"center_x": 0.5}
             self.layout.add_widget(self.title)
 
             self.interaction_region = BoxLayout(orientation='horizontal')
-            self.interaction_region.size_hint = (0.5, 0.5)
+            self.interaction_region.size_hint = (0.7, 0.7)
             self.interaction_region.pos_hint = {"center_x": 0.5}
 
             self.left_pane = BoxLayout(orientation='vertical')
-            self.old_pass_prompt = Label(
-                text="Enter Old Password *",
-                font_size=18,
-                color="#c3c3c3",
-                halign="left"
-            )
+            self.old_pass_prompt = Label(text="Enter Old Password *",
+                                         font_size=18,
+                                         color="#c3c3c3",
+                                         halign="left")
             self.old_pass_prompt.bind(size=self.old_pass_prompt.setter('text_size')) 
             self.left_pane.add_widget(self.old_pass_prompt)
-            
 
             self.old_pass_field = TextInput(multiline=False,
                                         padding_y=(5,5),
@@ -642,8 +632,9 @@ class PasswordWindow(Screen):
                                         password=True,
                                         background_color=(48/255,51/255,57/255,1),
                                         foreground_color=(195/255, 195/255, 195/255, 1),
-                                        size_hint=(0.6, 0.3)
-                                        )
+                                        size_hint=(None, None),
+                                        height=current_height//25,
+                                        width=current_width//4)
             self.left_pane.add_widget(self.old_pass_field)
 
             self.new_pass_prompt = Label(
@@ -660,8 +651,9 @@ class PasswordWindow(Screen):
                                         password=True,
                                         background_color=(48/255,51/255,57/255,1),
                                         foreground_color=(195/255, 195/255, 195/255, 1),
-                                        size_hint=(0.6, 0.3)
-                                        )
+                                        size_hint=(None, None),
+                                        height=current_height//25,
+                                        width=current_width//4)
             self.left_pane.add_widget(self.new_pass_field)
 
             self.new_pass_ver_prompt = Label(
@@ -678,45 +670,44 @@ class PasswordWindow(Screen):
                                         password=True,
                                         background_color=(48/255,51/255,57/255,1),
                                         foreground_color=(195/255, 195/255, 195/255, 1),
-                                        size_hint=(0.6, 0.3)
-                                        )
+                                        size_hint=(None, None),
+                                        height=current_height//25,
+                                        width=current_width//4)
             self.left_pane.add_widget(self.new_pass_ver)
 
-
-
             self.right_pane = BoxLayout(orientation='vertical')
+            self.right_pane.padding = [40, 0] #horizontal, vertical
             self.pass_requirements = Label(
-                text="Password Requirements:\n    \u2022 At least 6 characters\n    \u2022 Upper/lower case letters\n    \u2022 Number or punctuation",
+                text="Password Requirements:\n    \u2022 Must consist of at least 6 characters\n    \u2022 Must use both upper/lower case letters\n    \u2022 Must contain a Number or special character",
                 font_size=18,
-                color="#c3c3c3"
+                color="#c3c3c3",
+                pos_hint={"center_x":0.5}
             )
             self.pass_requirements.bind(size=self.pass_requirements.setter('text_size')) 
             self.right_pane.add_widget(self.pass_requirements)
             self.right_pane.spacing = 10
 
-            self.btn_apply = Button(
-                text="",
-                background_normal = 'buttons/Save.png',
-                background_down = 'buttons/Save_Pressed.png'
-            )
-            self.btn_apply.size_hint = (0.4, 0.4)
-            self.btn_apply.pos_hint = {"center_x": 0.25}
+            self.btn_apply = Button(text="",
+                                    background_normal = 'buttons/Save.png',
+                                    background_down = 'buttons/Save_Pressed.png',
+                                    size_hint=(None, None),
+                                    width=round(current_width/12.672),
+                                    height=round(current_height/11.88))
+            self.btn_apply.pos_hint = {"center_x": 0.375}
             self.right_pane.add_widget(self.btn_apply)
             self.btn_apply.bind(on_press=self.updatePassword)
 
-
-            self.btn_cancel = Button(
-                text="",
-                background_normal = 'buttons/Cancel.png',
-                background_down = 'buttons/Cancel_Pressed.png'
-            )
+            self.btn_cancel = Button(text="",
+                                     background_normal = 'buttons/Cancel.png',
+                                     background_down = 'buttons/Cancel_Pressed.png',
+                                     size_hint=(None, None),
+                                     width=round(current_width/12.672),
+                                     height=round(current_height/11.88))
             self.btn_cancel.bind(on_press=self.goToMain)
-            self.btn_cancel.size_hint = (0.4, 0.4)
-            self.btn_cancel.pos_hint = {"center_x": 0.25}
+            self.btn_cancel.pos_hint = {"center_x": 0.375}
             self.right_pane.add_widget(self.btn_cancel)
             
             
-
             self.interaction_region.add_widget(self.left_pane)
             self.interaction_region.add_widget(self.right_pane)
 
@@ -729,11 +720,10 @@ class PasswordWindow(Screen):
                                        pos_hint={"center_x" : 0.5})
             self.layout.add_widget(self.result_prompt)
 
-            self.group_logo = Image(source="Logo_White_A.png",
-                                     pos_hint={"center_x": 0.95, "bottom": 0})
+            self.group_logo = Image(source="images/Logo_White_A_Cropped.png",
+                                    pos_hint={"center_x": 0.95, "bottom": 0})
             self.group_logo.size_hint = (None, 0.2)
             self.layout.add_widget(self.group_logo)
-
 
             self.add_widget(self.layout)
 
@@ -742,25 +732,14 @@ class PasswordWindow(Screen):
             self.new_pass_text = self.new_pass_field.text
             self.new_pass_ver_text = self.new_pass_ver.text
 
-            #print(self.old_pass_text)
             textf = self.model_store.verifyPassword(self.old_pass_text, self.new_pass_text, self.new_pass_ver_text)
-
             self.result_prompt.text = str(textf)
-
-            #print(textf)
-            #self.warn_text.text = ""
-            #self.warn_text = Label(text=textf,
-            #                       font_size=11,
-            #                       bold=True,
-            #                       halign='right',
-            #                       valign='bottom',
-            #                       color='#B71C1C')
-            #self.layout.add_widget(self.warn_text)
 
         def goToMain(self, *args):
             self.old_pass_field.text = ""
             self.new_pass_field.text = ""
             self.new_pass_ver.text = ""
+            self.result_prompt.text = ""
             self.manager.current = 'main'
 
 
@@ -790,138 +769,9 @@ class ModelSettingsWindow(Screen):
                                pos_hint={"center_x": 0.55})
             self.parent_component.add_widget(self.title)
 
-
-            # self.layout = BoxLayout(orientation='vertical')
-            # # self.layout.spacing = 10
-            # # self.layout.padding = [0, 10, 0, 10]
-            # current_width, current_height = Window.size
-
-            # self.system_logo = Image(source="images/DextraManus_White_Cropped.png",
-            #                          pos_hint={"center_x": 0.5, "top": 0.1})
-            # self.layout.add_widget(self.system_logo)
-
-            # self.title = Label(text="Model Parameters",
-            #                    font_size=30,
-            #                    bold=True,
-            #                    color="#c3c3c3",)
-            # self.title.pos_hint = {"center_x": 0.5, "top": 0.4}
-            # self.layout.add_widget(self.title)
-
-            # #self.det_conf_row = BoxLayout(orientation='horizontal')
-            # #self.settings_grid = GridLayout(cols=2, row_force_default=True, row_default_height=40)
-            # self.split_panes = BoxLayout(orientation='horizontal')
-            # self.left_pane = BoxLayout(orientation='vertical')
-            # self.right_pane = BoxLayout(orientation='vertical')
-            # self.layout.add_widget(self.split_panes)
-            # self.split_panes.add_widget(self.left_pane)
-            # self.split_panes.add_widget(self.right_pane)
-
-
-            # self.complexity_prompt = Label(text="Model Complexity",
-            #                              font_size=18,
-            #                              color="#c3c3c3",
-            #                              )
-            # self.left_pane.add_widget(self.complexity_prompt)
-
-            # self.btn_group = BoxLayout(orientation='horizontal')
-            # self.btn_group.height = 50
-            # self.simple_btn = ToggleButton(text='Simple', group='complexity', state='down')
-            # self.complex_btn = ToggleButton(text='Complex', group='complexity', state='normal')
-            # self.btn_group.add_widget(self.simple_btn)
-            # self.btn_group.add_widget(self.complex_btn)
-            # self.right_pane.add_widget(self.btn_group)
-            # self.left_pane.size_hint = (None, None)
-            # self.left_pane.width = round(current_width / 2.5)
-            # self.right_pane.size_hint = (None, None)
-            # self.right_pane.width = round(current_width / 2.5)
-            # self.left_pane.height = current_height // 2
-            # self.right_pane.height = current_height//2
-
-            # self.det_conf_prompt = Label(text="Min Detection Confidence",
-            #                              font_size=18,
-            #                              color="#c3c3c3",
-            #                              )
-            # self.left_pane.add_widget(self.det_conf_prompt)
-
-            # self.slider_group1 = BoxLayout(orientation='horizontal')
-            # self.det_conf_slider = Slider(min=0.5, 
-            #                               max=1, 
-            #                               value=float(self.min_det_conf), 
-            #                               value_track=True, 
-            #                               value_track_color=[1, 0, 0, 1],
-            #                               size_hint=(None, None),
-            #                               width=round(current_width/4),
-            #                               )
-            # self.slider_group1.add_widget(self.det_conf_slider)
-            # self.det_conf_slider.bind(value=self.updateDetConfIndicator)
-
-            # self.det_conf_indicator = Label(text=str(self.det_conf_slider.value),
-            #                                 font_size=18,
-            #                                 color="#c3c3c3",
-            #                                 )
-            # self.slider_group1.add_widget(self.det_conf_indicator)
-            # self.right_pane.add_widget(self.slider_group1)
-
-            
-
-            # self.track_conf_prompt = Label(text="Min Tracking Confidence",
-            #                              font_size=18,
-            #                              color="#c3c3c3",
-            #                              )
-            # self.left_pane.add_widget(self.track_conf_prompt)
-
-            # self.slider_group2 = BoxLayout(orientation='horizontal')
-            # self.track_conf_slider = Slider(min=0.5, 
-            #                               max=1, 
-            #                               value=float(self.min_track_conf), 
-            #                               value_track=True, 
-            #                               value_track_color=[1, 0, 0, 1],
-            #                               size_hint=(None, None),
-            #                               width=round(current_width/4),
-            #                               height=30,
-            #                               )
-            # self.slider_group2.add_widget(self.track_conf_slider)
-            # self.track_conf_slider.bind(value=self.updateTrackConfIndicator)
-
-            # self.track_conf_indicator = Label(text=str(self.track_conf_slider.value),
-            #                                 font_size=18,
-            #                                 color="#c3c3c3",
-            #                                 )
-            # self.slider_group2.add_widget(self.track_conf_indicator)
-            # self.right_pane.add_widget(self.slider_group2)
-
-
-            # self.return_buttons = BoxLayout(orientation="horizontal")
-            # self.save_btn = Button(text="Save",
-            #                        size_hint=(None, None),
-            #                        bold=True,
-            #                        #background_normal = 'buttons/Run.png',
-            #                        #background_down = 'buttons/Run_Pressed.png',
-            #                        #pos_hint= {"center_x": 0.5},
-            #                        height=50)
-            # self.return_buttons.add_widget(self.save_btn)
-            # self.exit_btn = Button(text="Exit",
-            #                        size_hint=(None, None),
-            #                        bold=True,
-            #                        #background_normal = 'buttons/Run.png',
-            #                        #background_down = 'buttons/Run_Pressed.png',
-            #                        #pos_hint= {"center_x": 0.5},
-            #                        height=50)
-            # self.return_buttons.add_widget(self.exit_btn)
-            # self.layout.add_widget(self.return_buttons)
-
-
-            
-            # #self.layout.add_widget(self.settings_grid)
-
-
-            # self.add_widget(self.layout)
-
             self.settings_layout = GridLayout(cols=2)
-            #self.settings_layout.pos_hint = {"center_x": 0.5}
             self.settings_layout.size_hint = (None, None)
-            self.settings_layout.height = current_height // 2
-            #self.brightnessControl = Slider(min = 0, max = 100)
+            self.settings_layout.height = current_height // 2.2
 
             self.complexity_prompt = Label(text="Model Complexity",
                                            color="#c3c3c3",
@@ -966,8 +816,7 @@ class ModelSettingsWindow(Screen):
                                       height=current_height // 21.6,
                                       width=current_width // 4.6875)
             self.det_conf_ind.bind(size=self.det_conf_ind.setter('text_size'))
-
-            # 1st row - one label, one slider   
+  
             self.settings_layout.add_widget(self.det_conf_prompt)
 
             self.slider_group_1 = BoxLayout(orientation='horizontal')
@@ -997,8 +846,7 @@ class ModelSettingsWindow(Screen):
                                       size_hint=(None, None),
                                       height=current_height // 21.6,
                                       width=current_width // 4.6875)
-
-            # 1st row - one label, one slider   
+ 
             self.settings_layout.add_widget(self.track_conf_prompt)
 
             self.slider_group_2 = BoxLayout(orientation='horizontal')
@@ -1009,15 +857,13 @@ class ModelSettingsWindow(Screen):
 
             
             self.confirmation_box = BoxLayout(orientation='horizontal', pos_hint={"center_x": 0.7})
-            self.confirmation_box.pos_hint = {"center_x": 0.7}
             self.save_btn = Button(text="",
                                    size_hint=(None, None),
                                    bold=True,
-                                   background_normal = 'buttons/ApplyChanges.png',
-                                   background_down = 'buttons/ApplyChanges_Pressed.png',
-                                   #pos_hint= {"center_x": 0.7},
-                                   width=round(current_width/6.41),
-                                   height=round(current_height/10.8))
+                                   background_normal = 'buttons/Save.png',
+                                   background_down = 'buttons/Save_Pressed.png',
+                                   width=round(current_width/12.672),
+                                   height=round(current_height/11.88))
 
             self.save_btn.bind(on_press=self.updateSavedVals)
 
@@ -1028,17 +874,17 @@ class ModelSettingsWindow(Screen):
                                    background_normal = 'buttons/Cancel.png',
                                    background_down = 'buttons/Cancel_Pressed.png',
                                    #pos_hint= {"center_x": 0.7},
-                                   width=round(current_width/11.52),
-                                   height=round(current_height/10.8))
+                                   width=round(current_width/12.672),
+                                   height=round(current_height/11.88))
             self.exit_btn.bind(on_press=self.goToMain)
             self.confirmation_box.add_widget(self.exit_btn)
             self.confirmation_box.pos_hint= {"center_x": 0.9}
 
-            self.settings_layout.add_widget(Label(text=""))
-            self.settings_layout.add_widget(self.confirmation_box)
+            #self.settings_layout.add_widget(Label(text=""))
+            #self.parent_component.add_widget(self.confirmation_box)
 
             self.parent_component.add_widget(self.settings_layout)
-            #self.parent_component.add_widget(self.confirmation_box)
+            self.parent_component.add_widget(self.confirmation_box)
 
             self.group_logo = Image(source="images/Logo_White_A_Cropped.png",
                                 pos_hint={"center_x": 0.95, "bottom": 0},

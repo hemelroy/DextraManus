@@ -12,12 +12,11 @@ from kivy.core.window import Window
 
 from appScreens import *
 
-import ctypes
-
 PASS = "123"
 
 class DextraManusApp(App):
     def build(self):
+        self.icon = "images/Logo_White_A_Cropped.png"
         wm = WindowManager(transition=FadeTransition())
         wm.add_widget(LoginWindow(name='login'))
         wm.add_widget(MainWindow(name='main'))
@@ -27,9 +26,6 @@ class DextraManusApp(App):
         return wm
 
 if __name__ == "__main__":
-    user32 = ctypes.windll.user32
-    screensize = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-    Window.size = screensize
     Window.left = 0
     Window.top = 30
     Window.clearcolor = (54/255, 57/255, 63/255, 1)

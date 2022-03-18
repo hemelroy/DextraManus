@@ -8,7 +8,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 from google.protobuf.json_format import MessageToDict
 from mediapipe.framework.formats import landmark_pb2
-hand_indicator = cv2.imread("hand_placement_indicator_small.png")
+hand_indicator = cv2.imread("images/hand_placement_indicator_small.png")
 
 def initializeWebcam():
     vid = cv2.VideoCapture(0)
